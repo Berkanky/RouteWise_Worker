@@ -8,6 +8,11 @@ const http = require("http");
 //DB
 const mongoose = require("mongoose");
 
+var shut_down_server_in_safety_mode = require("./my_functions/shut_down_server_in_safety_mode");
+var { backup_country_meta_data } = require("./countries_fuel_operations/data360_world_bank_fuel_operations/data360_world_bank_fuel_price_operations");
+
+require("./cron_operations/cron_jobs");
+
 var { MONGODB_URI } = process.env;
 var PORT = process.env.PORT || 3000;
 
@@ -57,6 +62,17 @@ var server = http.createServer(app);
 
 server.listen(PORT, () => { 
   console.log("Server running. ");
+});
+
+process.on('SIGTERM', shut_down_server_in_safety_mode);
+process.on('SIGINT', shut_down_server_in_safety_mode);
+
+process.on("uncaughtException", (err) => {
+  console.error("Unexpected error!" + err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unexpected promise error!" + reason);
 });
 
 module.exports = app;
