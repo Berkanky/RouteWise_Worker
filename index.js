@@ -29,8 +29,6 @@ app.get(
     "/health",
     async(req, res) => {
       return res.status(200).json({
-          status: "ok",
-          request_date: new Date(),
           version: BACKEND_VERSION,
           success: true
       });

@@ -124,18 +124,10 @@ async function migrade_fuel_prices(){
 async function backup_country_meta_data(){
 
     var db_countries = await CountryMeta.find().select("Name Code DialCode CurrencyCode TollPassEnums FuelPrices");
-
-    var seen = new Map();
-    var duplicates = []; //Aynı name'ler birden fazla ise.
-
     var default_countries_json = [];
 
     for (var obj of db_countries) {
         if( !obj.Name ) continue;
-        var key = obj.Name;
-
-        if (seen.has(key)) duplicates.push(obj);
-        else seen.set(key, true);
 
         var default_country_obj = { 
             Name: obj.Name, 
@@ -168,4 +160,4 @@ async function backup_country_meta_data(){
     return;
 };
 
-module.exports = {backup_country_meta_data};
+module.exports = { backup_country_meta_data };
