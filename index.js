@@ -29,9 +29,10 @@ app.get(
     "/health",
     async(req, res) => {
       return res.status(200).json({
-          version: BACKEND_VERSION,
-          success: true,
-          service_issuer_name: 'worker.routewiseapp.com'
+        request_date: new Date(),
+        version: BACKEND_VERSION,
+        success: true,
+        service_issuer_name: 'worker.routewiseapp.com'
       });
     }
 );
