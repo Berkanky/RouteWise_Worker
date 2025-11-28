@@ -1,30 +1,27 @@
 const axios = require('axios');
 
 //Fonksiyonlar
-const FormatDateFunction = require("../my_functions/FormatDateFunction");
-const FormatNumber = require("../my_functions/FormatNumber");
+var FormatDateFunction = require("../MyFunctions/FormatDateFunction");
+var FormatNumber = require("../MyFunctions/FormatNumber");
 
 //Şemalar
 const CountryMeta = require('../Schemas/CountryMeta');
 
 //Node-Cache, Redis-Cache
 var server_cache = require("../cache");
-const { get_or_compute_with_lock } = require("../helpers/singe_flight");
-
-const { load_config_operations} = require('../config_operations/app_config');
 
 var { FRANKFURTER_API_URL, FRANKFURTER_API_REQUEST_URL} = process.env;
 
-var load_config = load_config_operations();
-var base_currency = load_config?.Calculator.currency_details?.BASE_CURRENCY;
+var base_currency = 'USD';
 
 if( !FRANKFURTER_API_URL ) throw "FRANKFURTER_API_URL required. ";
 if( !FRANKFURTER_API_REQUEST_URL ) throw "FRANKFURTER_API_REQUEST_URL required. ";
 if( !base_currency ) throw "base_currency required. ";
 
 var currencies_node_cache_key = 'currencies';
+var currencies_node_cache_timeout = 86400;
 
-async function frankfurter_service_response_cache_operation(){
+async function frankfurter_service_response(){
 
     var success = false;
     var detail = null;
@@ -92,22 +89,7 @@ async function frankfurter_service_response_cache_operation(){
 
         Object.assign(response_data.frankfurter_service_response_data, { detailed_rates: detailed_rates, rates_length: Object.keys(response["data"]["rates"]).length, detailed_rates_length: detailed_rates.length });
         delete response_data.frankfurter_service_response_data.rates;
-
-        await server_cache.del(currencies_node_cache_key);
-        await get_or_compute_with_lock(
-            currencies_node_cache_key,
-            async () => {
-                return response_data;
-            },
-            {
-                cacheTTL: 86400,
-                lockTTL: 180,
-                waitTimeoutMs: 15000,
-                pollEveryMs: 300,
-                verbose: true 
-            }
-        ); 
-
+        
         success = true;
         detail = "Frankfurter service executed successfully.";
 
@@ -123,14 +105,23 @@ async function frankfurter_service_response_cache_operation(){
     }
 };
 
+async function set_currencies_node_cache(){
+    await server_cache.del(currencies_node_cache_key);
+
+    var { response_data } = await frankfurter_service_response();
+    console.log("Frankfurter service response -> " + JSON.stringify(response_data));
+    
+    await server_cache.set(currencies_node_cache_key, response_data, currencies_node_cache_timeout);
+
+    return;
+};
+
 async function control_currencies_node_cache(){
 
     var cached_currencies = await server_cache.get(currencies_node_cache_key);
-    if( !cached_currencies ) await frankfurter_service_response_cache_operation();
+    if( !cached_currencies ) await set_currencies_node_cache();
 };
 
 control_currencies_node_cache();
 
-//Burası Servisten -> Redis Cache.
-
-module.exports = frankfurter_service_response_cache_operation;
+module.exports = set_currencies_node_cache;

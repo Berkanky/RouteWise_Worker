@@ -4,7 +4,7 @@ const axios = require('axios');
 const CountryMeta = require("../Schemas/CountryMeta");
 
 //fonksiyonlar
-const convert_gal_price_to_lt = require("../my_functions/convert_gal_price_to_lt");
+var convert_gal_price_to_lt = require("../MyFunctions/convert_gal_price_to_lt");
 
 var { EIA_API_URL, EIA_API_KEY } = process.env;
 

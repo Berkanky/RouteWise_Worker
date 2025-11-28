@@ -9,9 +9,9 @@ var server_cache = require("../cache.js");
 const CountryMeta = require("../Schemas/CountryMeta.js");
 
 //Fonksiyonlar
-const format_string_to_number = require("../my_functions/format_string_to_number.js");
-const is_date = require("../my_functions/is_date.js");
-const find_country = require("../my_functions/find_country.js");
+var format_string_to_number = require("../MyFunctions/format_string_to_number.js");
+var is_date = require("../MyFunctions/is_date.js");
+var find_country = require("../MyFunctions/find_country.js");
 
 var { EURO_STAT_OIL_URL, BACKEND_VERSION } = process.env;
 
