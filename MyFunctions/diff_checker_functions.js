@@ -36,6 +36,8 @@ function diff_countries_snapshots(old_list, new_list) {
       })
     }
   }
+  
+  console.log("Report Operation Completed. ");
   return result.country_changed;
 };
 

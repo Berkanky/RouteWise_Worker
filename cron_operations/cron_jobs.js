@@ -12,11 +12,8 @@ var routewise_system_operations = require("../routewise_system_operations/index"
 var set_country_meta_data_cache = require("../cache_operations/country_meta_data_cache_operation"); //Her pazartesi Sabah 10 -> 0 10 * * 1
 var set_currencies_node_cache = require("../cache_operations/frankfurter_service_response_cache_operation"); //Her gün akşam 18:00'da -> 0 18 * * *
 
-//CountryMetaData backup
-var { backup_country_meta_data } = require("../countries_fuel_operations/data360_world_bank_fuel_operations/data360_world_bank_fuel_price_operations");
-
 //Fonksiyonlar.
-var { diff_countries_snapshots } = require("../MyFunctions/country_meta_data_diff_checker_functions");
+var { diff_countries_snapshots } = require("../MyFunctions/diff_checker_functions");
 var get_country_meta_data = require("../MyFunctions/get_country_meta_data");
 var create_country_meta_data_report = require("../insert_functions/create_grid_fs");
 
@@ -39,7 +36,7 @@ async function init_cron_jobs(app){
       await usa_fuel_price_details();
       await europe_fuel_price_details();
       await canada_fuel_price_details();
-      
+          
       //Üsttekiler CountryMeta tablosunda gerekli alanları update eder ve sonra alttaki cache yapar.
       await set_country_meta_data_cache();
 
@@ -47,6 +44,8 @@ async function init_cron_jobs(app){
 
       var diff_countries_snapshots_results = diff_countries_snapshots(before_update_country_meta_data, after_update_country_meta_data);
       var { success, id, length, filename, metadata } = await create_country_meta_data_report(app, diff_countries_snapshots_results);
+
+  return true;
       
     }catch(err){
       console.log(err);
