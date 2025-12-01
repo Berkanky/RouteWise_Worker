@@ -13,10 +13,11 @@ var format_string_to_number = require("../MyFunctions/format_string_to_number.js
 var is_date = require("../MyFunctions/is_date.js");
 var find_country = require("../MyFunctions/find_country.js");
 
-var { EURO_STAT_OIL_URL, BACKEND_VERSION } = process.env;
+var { EURO_STAT_OIL_URL, BACKEND_VERSION, FRANKFURTER_API_URL } = process.env;
 
 if( !EURO_STAT_OIL_URL ) throw "EURO_STAT_OIL_URL required. ";
 if( !BACKEND_VERSION ) throw "BACKEND_VERSION required. ";
+if( !FRANKFURTER_API_URL ) throw "FRANKFURTER_API_URL required. ";
 
 var country_currency_map_json = require("../meta_operations/country_currency_operations/country_currency_map.json");
 if( !country_currency_map_json ) throw 'country_currency_map_json required. ';
@@ -26,7 +27,9 @@ async function convert_eur_to_usd(value){
     if( !value ) throw "value required. ";
 
     var currencies = await server_cache.get('currencies');
-    if( !currencies ) throw "Currencies required. ";
+    if( !currencies ) throw "Currencies required in europe_fuel_price_details. ";
+
+    var frankfurter_currencies_period_date = new Date(String(currencies?.frankfurter_service_response_data?.date));
 
     var detailed_rates = currencies?.frankfurter_service_response_data?.detailed_rates;
 
@@ -36,11 +39,11 @@ async function convert_eur_to_usd(value){
     var eur_currency_rate = eur_currency_row?.Rate;
     if( !eur_currency_rate ) throw "eur_currency_rate required. ";
 
-    var for_calculate_rate = 1/eur_currency_rate;
+    var eur_to_usd_rate = 1/eur_currency_rate;
 
-    var converted_price_value_to_usd = (value * for_calculate_rate);
+    var converted_price_value_to_usd = (value * eur_to_usd_rate);
 
-    return converted_price_value_to_usd;
+    return { converted_price_value_to_usd, eur_to_usd_rate, period: frankfurter_currencies_period_date };
 };
 
 async function download_euro_stat_xlsx_to_json(xlsx_url) {
@@ -68,21 +71,15 @@ async function download_euro_stat_xlsx_to_json(xlsx_url) {
     });
 
     var year = new Date().getFullYear();
-    var period = new Date();
     var units = "$/L";
-    //var grade = "gasoline";
-    var source = EURO_STAT_OIL_URL; //"https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en";
-    var created_date = new Date();
+    var source = EURO_STAT_OIL_URL;
     var updated_date = new Date();
     var method = 'Programmatic Data Fetching';
-    //var energy_type = 'GASOLINE';
 
     var default_obj = {
         Year: year,
-        Period: period,
         Units: units,
         Method: method,
-        CreatedDate: created_date,
         UpdatedDate: updated_date,
         BaseUnits: 'GAL',
         Source: source,
@@ -92,28 +89,48 @@ async function download_euro_stat_xlsx_to_json(xlsx_url) {
     var formatted_rows = [];
 
     for(var i = 0; i < rows.length; i++){
+
         var row = rows[i];
 
+        var period_date;
         var country_name = row['in EUR'];
+        if( is_date(country_name) ){
+
+            var [day, month, year] = country_name.split("/");
+            period_date = new Date(`${year}-${month}-${day}`);
+        }
 
         var country_row = { 
             Name: country_name, 
             FuelPrices:[]
         };
 
-        var converted_gasoline_value = await convert_eur_to_usd(format_string_to_number(row['Euro-super 95  (I)'])/1000);
-        var converted_diesel_value = await convert_eur_to_usd(format_string_to_number(row['Gas oil automobile Automotive gas oil Dieselkraftstoff (I)'])/1000);
+        var { converted_price_value_to_usd, eur_to_usd_rate, period } = await convert_eur_to_usd(format_string_to_number(row['Euro-super 95  (I)'])/1000);
 
-        var gasoline_row = {
-            Value: converted_gasoline_value,
-            EnergyType: 'GASOLINE',
-            Grade: 'gasoline',
+        var FX = {
+            BaseCurrency: "EUR",
+            QuoteCurrency: 'USD',
+            Rate: eur_to_usd_rate,
+            Source: FRANKFURTER_API_URL,
+            Period: period
         };
 
+        var gasoline_row = {
+            Value: converted_price_value_to_usd,
+            EnergyType: 'GASOLINE',
+            Grade: 'gasoline',
+            Period: period_date,
+            FX: FX
+        };
+
+        var { converted_price_value_to_usd, eur_to_usd_rate, period } = await convert_eur_to_usd(format_string_to_number(row['Gas oil automobile Automotive gas oil Dieselkraftstoff (I)'])/1000);
+
         var diesel_row = {
-            Value: converted_diesel_value,
+            Value: converted_price_value_to_usd,
             EnergyType: 'DIESEL',
             Grade: 'diesel',
+            Period: period_date,
+            FX: FX
         };
 
         Object.assign(gasoline_row, default_obj);
@@ -121,15 +138,13 @@ async function download_euro_stat_xlsx_to_json(xlsx_url) {
 
         country_row.FuelPrices.push(gasoline_row, diesel_row);
 
-        if( is_date(country_name) ) continue;
-
-        formatted_rows.push(country_row);
+        if( !is_date(country_name) ) formatted_rows.push(country_row);
     };
 
     return formatted_rows;
 };
 
-async function migrade_country_meta_data(euro_stat_json){
+async function update_country_meta_data(euro_stat_json){
 
     var countries_meta = await CountryMeta.find();
 
@@ -141,6 +156,8 @@ async function migrade_country_meta_data(euro_stat_json){
         var existing_country = countries_meta.find(function(item){ return item.Name === country_name });
         
         if( !existing_country ){
+
+            row.FuelPrices = row.FuelPrices.forEach(function(item){ item.CreatedDate = new Date() });
 
             var new_country_meta_data_obj = {
                 Name: country_name,
@@ -157,6 +174,8 @@ async function migrade_country_meta_data(euro_stat_json){
         else if( existing_country ) {
 
             if( !existing_country.FuelPrices || existing_country.FuelPrices.length === 0){
+
+                row.FuelPrices = row.FuelPrices.forEach(function(item){ item.CreatedDate = new Date() });
 
                 await CountryMeta.findByIdAndUpdate(
                     existing_country._id.toString(),
@@ -181,14 +200,17 @@ async function migrade_country_meta_data(euro_stat_json){
 
                         country_meta_existing_fuel_price.UpdatedDate = new Date();
                         country_meta_existing_fuel_price.Value = fuel_data_row.Value;
-                        country_meta_existing_fuel_price.Period = new Date();
+                        country_meta_existing_fuel_price.Period = fuel_data_row.Period;
                         country_meta_existing_fuel_price.BackendVersion = BACKEND_VERSION;
+                        country_meta_existing_fuel_price.FX = fuel_data_row.FX;
 
                         existing_country.UpdatedDate = new Date();
 
                         await existing_country.save();
                     }
                     else {
+
+                        fuel_data_row.CreatedDate = new Date();
 
                         var country_meta_data_update = {
                             $push:{
@@ -207,7 +229,7 @@ async function migrade_country_meta_data(euro_stat_json){
     };
 };
 
-async function update_europe_country_meta_data(){
+async function get_eurostat_fuel_prices_xlsx_url_string(){
 
     var res = await axios.get(EURO_STAT_OIL_URL, {
         headers: {
@@ -238,15 +260,15 @@ async function update_europe_country_meta_data(){
 
     var euro_stat_json = await download_euro_stat_xlsx_to_json(url_string);
     if( !euro_stat_json ) throw "euro_stat_json required. ";
-
-    await migrade_country_meta_data(euro_stat_json);
+    
+    await update_country_meta_data(euro_stat_json);
 
     return true;
 };
 
 async function europe_fuel_price_details(){
-    await update_europe_country_meta_data();
-    console.log("update_europe_country_meta_data completed. ");
+    await get_eurostat_fuel_prices_xlsx_url_string();
+    console.log("The update of gasoline and diesel prices in European countries has been successfully completed. ");
 };
 
 module.exports = europe_fuel_price_details;

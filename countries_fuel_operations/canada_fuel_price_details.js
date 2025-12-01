@@ -7,11 +7,12 @@ var server_cache = require("../cache.js");
 //Şemalar
 const CountryMeta = require("../Schemas/CountryMeta.js");
 
-var { NRCAN_GASOLINE_URL, NRCAN_DIESEL_URL, BACKEND_VERSION } = process.env;
+var { NRCAN_GASOLINE_URL, NRCAN_DIESEL_URL, BACKEND_VERSION, FRANKFURTER_API_URL} = process.env;
 
 if( !NRCAN_GASOLINE_URL ) throw "NRCAN_GASOLINE_URL required. ";
 if( !NRCAN_DIESEL_URL ) throw "NRCAN_DIESEL_URL required. ";
 if( !BACKEND_VERSION ) throw "BACKEND_VERSION required. ";
+if( !FRANKFURTER_API_URL ) throw "FRANKFURTER_API_URL required. ";
 
 var current_year = new Date().getFullYear();
 
@@ -43,11 +44,20 @@ async function get_canada_gasoline_prices_detail(){
 
     if (!cell.length) throw new Error("İstenen headers değerine sahip hücre bulunamadı.");
 
+    var date_cell = last_row.find(
+        'td[headers="headerDate empty header1"]'
+    ).first();
+
+    if (!date_cell.length) throw new Error("İstenen headers değerine sahip hücre bulunamadı.");
+    var period_date = new Date(date_cell.text().trim());
+
     var cent_value = Number(cell.text().trim()); //cents per litre. 144.7	
     var cad_per_litre = cent_value / 100; //cad_per_litre 1.4469999999999998
 
     var currencies = await server_cache.get("currencies");
-    if( !currencies ) throw "currencies required. ";
+    if( !currencies ) throw "currencies required canada_fuel_price_details gasoline. ";
+
+    var frankfurter_currencies_period_date = new Date(String(currencies?.frankfurter_service_response_data?.date));
 
     var detailed_rates = currencies?.frankfurter_service_response_data?.detailed_rates;
     if( !detailed_rates.length ) throw "detailed_rates required. ";
@@ -62,11 +72,21 @@ async function get_canada_gasoline_prices_detail(){
 
     var usd_per_litre = cad_per_litre * cad_to_usd_rate; //usd_per_litre 1.027334043308484
 
+    var FX = {
+        BaseCurrency: cad_currency_code,
+        QuoteCurrency: 'USD',
+        Rate: cad_to_usd_rate,
+        Source: FRANKFURTER_API_URL,
+        Period: frankfurter_currencies_period_date
+    };
+
     var cad_gasoline_data = {
         Source: NRCAN_GASOLINE_URL,
         Grade: "gasoline",
         EnergyType: "GASOLINE",
-        Value: usd_per_litre
+        Value: usd_per_litre,
+        Period: period_date,
+        FX: FX
     };
 
     return cad_gasoline_data;
@@ -94,11 +114,20 @@ async function get_canada_diesel_prices_detail(){
 
     if (!cell.length) throw new Error("İstenen headers değerine sahip hücre bulunamadı.");
 
+    var date_cell = last_row.find(
+        'td[headers="headerDate empty header1"]'
+    ).first();
+
+    if (!date_cell.length) throw new Error("İstenen headers değerine sahip hücre bulunamadı.");
+    var period_date = new Date(date_cell.text().trim());
+
     var cent_value = Number(cell.text().trim()); //cents per litre. 144.7	
     var cad_per_litre = cent_value / 100; //cad_per_litre 1.4469999999999998
 
     var currencies = await server_cache.get("currencies");
-    if( !currencies ) throw "currencies required. ";
+    if( !currencies ) throw "currencies required canada_fuel_price_details diesel. ";
+
+    var frankfurter_currencies_period_date = new Date(String(currencies?.frankfurter_service_response_data?.date));
 
     var detailed_rates = currencies?.frankfurter_service_response_data?.detailed_rates;
     if( !detailed_rates.length ) throw "detailed_rates required. ";
@@ -113,11 +142,21 @@ async function get_canada_diesel_prices_detail(){
 
     var usd_per_litre = cad_per_litre * cad_to_usd_rate; //usd_per_litre 1.027334043308484
 
+    var FX = {
+        BaseCurrency: cad_currency_code,
+        QuoteCurrency: 'USD',
+        Rate: cad_to_usd_rate,
+        Source: FRANKFURTER_API_URL,
+        Period: frankfurter_currencies_period_date
+    };
+
     var cad_diesel_data = {
         Source: NRCAN_DIESEL_URL,
         Grade: "diesel",
         EnergyType: "DIESEL",
-        Value: usd_per_litre
+        Value: usd_per_litre,
+        Period: period_date,
+        FX: FX
     };
 
     return cad_diesel_data;
@@ -131,7 +170,6 @@ async function update_canada_country_meta_data(){
     if( !country_meta_data ) return;
 
     var year = new Date().getFullYear();
-    var period = new Date();
     var units = "$/L";
     var created_date = new Date();
     var updated_date = new Date();
@@ -139,10 +177,8 @@ async function update_canada_country_meta_data(){
 
     var canada_fuel_price_data_default = {
         Year: year,
-        Period: period,
         Units: units,
         Method: method,
-        CreatedDate: created_date,
         UpdatedDate: updated_date,
         BaseUnits: 'GAL',
         BackendVersion: BACKEND_VERSION
@@ -168,6 +204,7 @@ async function update_canada_country_meta_data(){
         var grade = fuel_price_data.Grade;
         var units = fuel_price_data.Units;
         var energy_type = fuel_price_data.EnergyType;
+        var period = fuel_price_data.Period;
 
         if( country_meta_data.FuelPrices ) {
             
@@ -175,16 +212,19 @@ async function update_canada_country_meta_data(){
             if( existing_fuel_price_data ) {
 
                 existing_fuel_price_data.Value = fuel_price_data.Value;
-                existing_fuel_price_data.UpdatedDate = new Date();
-                existing_fuel_price_data.Period = new Date();
+                existing_fuel_price_data.UpdatedDate = updated_date;
+                existing_fuel_price_data.Period = period;
                 existing_fuel_price_data.BackendVersion = BACKEND_VERSION;
+                existing_fuel_price_data.FX = fuel_price_data.FX;
 
-                country_meta_data.UpdatedDate = new Date();
+                country_meta_data.UpdatedDate = updated_date;
 
                 await country_meta_data.save();
 
                 continue;
             } else {
+
+                Object.assign(fuel_price_data, { CreatedDate: created_date });
 
                 var country_meta_data_insert = {
                     $push: { FuelPrices: fuel_price_data }
@@ -194,6 +234,8 @@ async function update_canada_country_meta_data(){
                 continue;
             }
         }else{
+
+            Object.assign(fuel_price_data, { CreatedDate: created_date });
 
             var country_meta_data_insert = {
                 $push: { FuelPrices: fuel_price_data }
@@ -208,7 +250,7 @@ async function update_canada_country_meta_data(){
 
 async function canada_fuel_price_details(){
     await update_canada_country_meta_data();
-    console.log("canada_fuel_price_details completed. ");
+    console.log("The update of gasoline and diesel prices in Canada has been successfully completed. ");
 };
 
 module.exports = canada_fuel_price_details;

@@ -160,4 +160,77 @@ async function backup_country_meta_data(){
     return;
 };
 
-module.exports = { backup_country_meta_data };
+async function clean_country_meta_data(){
+    console.log("Country Meta Data cleanup operation has begun. ");
+    var supported_countries = [
+        "United States",
+        "Canada",
+        "Austria",
+        "Belgium",
+        "Bulgaria",
+        "Croatia",
+        "Cyprus",
+        "Czechia",
+        "Denmark",
+        "Estonia",
+        "Finland",
+        "France",
+        "Germany",
+        "Greece",
+        "Hungary",
+        "Ireland",
+        "Italy",
+        "Latvia",
+        "Lithuania",
+        "Luxembourg",
+        "Malta",
+        "Netherlands",
+        "Poland",
+        "Portugal",
+        "Romania",
+        "Slovakia",
+        "Slovenia",
+        "Spain",
+        "Sweden",
+        "Australia",
+        "Argentina",
+        "Brazil",
+        "India",
+        "Indonesia",
+        "Japan",
+        "Mexico",
+        "Türkiye"
+    ];
+
+    var country_meta_data = await CountryMeta.find();
+
+    var deleted_country_meta_data = [];
+    var deleted_count = 0;
+    var current_supported_countries = [];
+    for(var i = 0; i < country_meta_data.length; i++){
+
+        var row = country_meta_data[i];
+        var country_name = row.Name;
+        var country_meta_data_id = row._id.toString();
+
+        var is_country_supported = supported_countries.some(function(item){ return item === country_name });
+        if( is_country_supported ) {
+
+            current_supported_countries.push(row);
+            continue;
+        }
+
+        //Desteklenmiyorsa silinecek.
+        await CountryMeta.findByIdAndDelete(country_meta_data_id);
+        deleted_count += 1;
+
+        deleted_country_meta_data.push(row);
+    };
+
+    console.log("Country Meta Data cleanup operation completed successfully, report details -> ");
+    console.log("Number of Deleted Countries -> " + deleted_count);
+    console.log("Deleted Countries -> " + JSON.stringify(deleted_country_meta_data));
+    console.log("Supported Countries -> " + JSON.stringify(current_supported_countries));
+};
+
+module.exports = { backup_country_meta_data, clean_country_meta_data };

@@ -21,6 +21,7 @@ var rate_limiter = require("./Middleware/rate_limiter");
 
 var read_country_meta_data_report = require("./insert_functions/read_grid_fs");
 var shut_down_server_in_safety_mode = require("./MyFunctions/shut_down_server_in_safety_mode");
+var { clean_country_meta_data } = require("./countries_fuel_operations/data360_world_bank_fuel_operations/data360_world_bank_fuel_price_operations"); //Gereksiz ülkeler silindi. 
 
 var { MONGODB_URI } = process.env;
 var PORT = process.env.PORT || 3000;
@@ -58,8 +59,6 @@ var route_wise_app_response = {
   success: true,
   service_issuer: 'worker.routewiseapp.com'
 };
-
-//Lokalde ip yok.
 
 //Health servisi.
 app.get(
@@ -160,9 +159,9 @@ app.use(express.static('public', { dotfiles: 'ignore' }));
 
 var server = http.createServer(app);
 
-//Servisler buraya.
 app.post(
   "/read/country-meta-data/reports",
+  rate_limiter,
   async(req, res) => {
     var { _id } = req.body;
 

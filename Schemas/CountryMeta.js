@@ -1,5 +1,28 @@
 const mongoose = require('mongoose');
 
+const FXBaseSchema = new mongoose.Schema({
+    BaseCurrency: {
+        type: String,
+        required: false
+    },
+    QuoteCurrency:{
+        type: String,
+        required: false
+    },
+    Rate:{
+        type: Number,
+        required: false
+    },
+    Source:{
+        type: String,
+        required: false
+    },
+    Period:{
+        type: Date,
+        required: false
+    }
+});
+
 const TollPassSchema = new mongoose.Schema({
     GoogleEnum: {
         type: String,
@@ -112,7 +135,8 @@ const FuelPricesSchema = new mongoose.Schema({
     DataNote:{
         type: String,
         required: false
-    }
+    },
+    FX: FXBaseSchema
 });
 
 const CountryMetaSchema = new mongoose.Schema({

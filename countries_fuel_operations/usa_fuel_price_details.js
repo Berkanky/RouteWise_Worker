@@ -1,19 +1,29 @@
 const axios = require('axios');
 
+//redis-cache
+var server_cache = require("../cache");
+
 //Şemalar
 const CountryMeta = require("../Schemas/CountryMeta");
 
 //fonksiyonlar
 var convert_gal_price_to_lt = require("../MyFunctions/convert_gal_price_to_lt");
 
-var { EIA_API_URL, EIA_API_KEY } = process.env;
+
+var { EIA_API_URL, EIA_API_KEY, FRANKFURTER_API_URL} = process.env;
 
 if( !EIA_API_URL ) throw "EIA_API_URL required. ";
 if( !EIA_API_KEY) throw "EIA_API_KEY required. ";
+if( !FRANKFURTER_API_URL ) throw "FRANKFURTER_API_URL required. ";
 
-async function update_europe_country_meta_data(){
+async function update_usa_country_meta_data(){
 
-    var params = {
+    var currencies = await server_cache.get('currencies');
+    if( !currencies ) throw "Currencies required in europe_fuel_price_details. ";
+
+    var frankfurter_currencies_period_date =  new Date(String(currencies?.frankfurter_service_response_data?.date));
+    
+    var params = {  
         api_key: EIA_API_KEY,
         frequency: "weekly",
         data: ["value"],
@@ -78,7 +88,15 @@ async function update_europe_country_meta_data(){
             Units =  "$/L"; //child_row["units"];
             Grade = child_key;
 
-            fuel_prices.push({Year, Value, Period, Units, EnergyType, Grade, value_gal });
+            var FX = {
+                BaseCurrency: 'USD',
+                QuoteCurrency: 'USD',
+                Rate: 1,
+                Source: FRANKFURTER_API_URL,
+                Period: frankfurter_currencies_period_date
+            };
+
+            fuel_prices.push({Year, Value, Period, Units, EnergyType, Grade, value_gal, FX });
         }
     }
     
@@ -95,6 +113,7 @@ async function update_europe_country_meta_data(){
             fuel_price_data_row.Value = row.Value;
             fuel_price_data_row.UpdatedDate = new Date();
             fuel_price_data_row.Period = new Date(String(row.Period));
+            fuel_price_data_row.FX = row.FX;
 
             usa_country_meta_data.UpdatedDate = new Date();
 
@@ -112,7 +131,8 @@ async function update_europe_country_meta_data(){
                 EnergyType: row.EnergyType,
                 Grade: row.Grade,
                 Method: "API",
-                Source: process.env.EIA_API_SOURCE
+                Source: process.env.EIA_API_SOURCE,
+                FX: row.FX
             };
                 
             var country_meta_update = {
@@ -133,8 +153,9 @@ async function update_europe_country_meta_data(){
 };
 
 async function usa_fuel_price_details(){
-    await update_europe_country_meta_data();
-    console.log("usa_fuel_price_details completed. ");
+
+    await update_usa_country_meta_data();
+    console.log("The update of gasoline and diesel prices in the United States has been successfully completed. ");
 };
 
 module.exports = usa_fuel_price_details;

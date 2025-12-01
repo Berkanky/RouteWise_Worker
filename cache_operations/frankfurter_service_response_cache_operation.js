@@ -50,8 +50,9 @@ async function frankfurter_service_response(){
         };
 
         var api_url = FRANKFURTER_API_URL + FRANKFURTER_API_REQUEST_URL + '?base=' + base_currency + '&symbols=' + symbols_query_val;
-
+        
         var response = await axios.get(api_url);
+        console.log("Frankfurter service response status. " + response.status);
 
         if( response.status !== 200 ) return default_request_response;
 
@@ -109,7 +110,6 @@ async function set_currencies_node_cache(){
     await server_cache.del(currencies_node_cache_key);
 
     var { response_data } = await frankfurter_service_response();
-    console.log("Frankfurter service response -> " + JSON.stringify(response_data));
     
     await server_cache.set(currencies_node_cache_key, response_data, currencies_node_cache_timeout);
 
@@ -119,7 +119,10 @@ async function set_currencies_node_cache(){
 async function control_currencies_node_cache(){
 
     var cached_currencies = await server_cache.get(currencies_node_cache_key);
-    if( !cached_currencies ) await set_currencies_node_cache();
+    if( !cached_currencies ) {
+        console.log("Frankfurter data not found in Redis cache, operation starting.");
+        await set_currencies_node_cache();  
+    } else console.log("Frankfurter found in Redis Cache. ");
 };
 
 control_currencies_node_cache();

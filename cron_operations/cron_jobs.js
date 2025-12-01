@@ -30,6 +30,7 @@ async function init_cron_jobs(app){
   cron.schedule(is_cron_test_active == true ? cron_general_date_dev_test : crond_1_date_prod, async () => {
 
     try{
+      console.log("The fuel pricing operation has been successfully started. ");
 
       var before_update_country_meta_data = await get_country_meta_data(); //Update başlamadan önceki country_meta_data.
 
@@ -45,6 +46,7 @@ async function init_cron_jobs(app){
       var diff_countries_snapshots_results = diff_countries_snapshots(before_update_country_meta_data, after_update_country_meta_data);
       var { success, id, length, filename, metadata } = await create_country_meta_data_report(app, diff_countries_snapshots_results);
 
+      console.log("The fuel pricing operation has been successfully completed.");
   return true;
       
     }catch(err){
@@ -56,7 +58,7 @@ async function init_cron_jobs(app){
   });
 
   var cron_2_date_prod = '0 * * * *';
-  cron.schedule(is_cron_test_active == true ? cron_general_date_dev_test : cron_2_date_prod, async () => {
+  cron.schedule(cron_2_date_prod, async () => {
     try{
       await routewise_system_operations();
     }catch(err){
@@ -68,7 +70,7 @@ async function init_cron_jobs(app){
   });
 
   var cron_date_3_prod = '0 18 * * *';
-  cron.schedule(is_cron_test_active == true ? cron_general_date_dev_test : cron_date_3_prod, async () => {
+  cron.schedule(cron_date_3_prod, async () => {
     try{
       await set_currencies_node_cache();
     }catch(err){
