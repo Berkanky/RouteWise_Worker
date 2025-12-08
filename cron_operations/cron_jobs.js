@@ -24,10 +24,10 @@ var is_cron_test_active = false;
 
 var cron_general_date_dev_test = '* * * * *';
 var crond_1_date_prod = '0 10 * * 1';
-
+//is_cron_test_active == true ? cron_general_date_dev_test : crond_1_date_prod
 async function init_cron_jobs(app){
 
-  cron.schedule(is_cron_test_active == true ? cron_general_date_dev_test : crond_1_date_prod, async () => {
+  cron.schedule("0 18 * * *", async () => {
 
     try{
       console.log("The fuel pricing operation has been successfully started. ");
