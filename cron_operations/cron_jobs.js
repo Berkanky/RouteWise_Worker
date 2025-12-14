@@ -20,17 +20,26 @@ var create_country_meta_data_report = require("../insert_functions/create_grid_f
 var { NODE_ENV } = process.env;
 if( !NODE_ENV ) throw 'Required NODE_ENV. ';
 
-var is_cron_test_active = false;
-
-var cron_general_date_dev_test = '* * * * *';
-var crond_1_date_prod = '0 10 * * 1';
-//is_cron_test_active == true ? cron_general_date_dev_test : crond_1_date_prod
 async function init_cron_jobs(app){
 
-  cron.schedule("0 18 * * *", async () => {
+  var cron_2_date_prod = '0 * * * *';
+  cron.schedule(cron_2_date_prod, async () => {
+    try{
+      await routewise_system_operations();
+    }catch(err){
+      console.log(err);
+    }
+  }, {
+    scheduled: true,
+    timezone: 'Europe/Istanbul'
+  });
 
+  var cron_date_3_prod = '50 15 * * *'; //0 18 * * *
+  cron.schedule(cron_date_3_prod, async () => {
     try{
       console.log("The fuel pricing operation has been successfully started. ");
+
+      await set_currencies_node_cache();
 
       var before_update_country_meta_data = await get_country_meta_data(); //Update başlamadan önceki country_meta_data.
 
@@ -47,32 +56,6 @@ async function init_cron_jobs(app){
       var { success, id, length, filename, metadata } = await create_country_meta_data_report(app, diff_countries_snapshots_results);
 
       console.log("The fuel pricing operation has been successfully completed.");
-  return true;
-      
-    }catch(err){
-      console.log(err);
-    }
-  }, {
-    scheduled: true,
-    timezone: 'Europe/Istanbul'
-  });
-
-  var cron_2_date_prod = '0 * * * *';
-  cron.schedule(cron_2_date_prod, async () => {
-    try{
-      await routewise_system_operations();
-    }catch(err){
-      console.log(err);
-    }
-  }, {
-    scheduled: true,
-    timezone: 'Europe/Istanbul'
-  });
-
-  var cron_date_3_prod = '0 18 * * *';
-  cron.schedule(cron_date_3_prod, async () => {
-    try{
-      await set_currencies_node_cache();
     }catch(err){
       console.log(err);
     }

@@ -19,7 +19,7 @@ if( !FRANKFURTER_API_URL ) throw "FRANKFURTER_API_URL required. ";
 async function update_usa_country_meta_data(){
 
     var currencies = await server_cache.get('currencies');
-    if( !currencies ) throw "Currencies required in europe_fuel_price_details. ";
+    if( !currencies ) throw "Currencies required in usa_fuel_priec_dteails ";
 
     var frankfurter_currencies_period_date =  new Date(String(currencies?.frankfurter_service_response_data?.date));
     
