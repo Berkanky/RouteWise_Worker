@@ -175,15 +175,18 @@ async function update_country_meta_data(euro_stat_json){
 
             if( !existing_country.FuelPrices || existing_country.FuelPrices.length === 0){
 
-                row.FuelPrices = row.FuelPrices.forEach(function(item){ item.CreatedDate = new Date() });
+                if( row.FuelPrices && row.FuelPrices.length ) {
 
-                await CountryMeta.findByIdAndUpdate(
-                    existing_country._id.toString(),
-                    {
-                        $push: { FuelPrices: { $each: row.FuelPrices } },
-                        $set: { UpdatedDate: new Date() }
-                    }
-                );
+                    row.FuelPrices.forEach(function(item){ item.CreatedDate = new Date() });
+
+                    await CountryMeta.findByIdAndUpdate(
+                        existing_country._id.toString(),
+                        {
+                            $push: { FuelPrices: { $each: row.FuelPrices } },
+                            $set: { UpdatedDate: new Date() }
+                        }
+                    );
+                }
             }
             else {
                 

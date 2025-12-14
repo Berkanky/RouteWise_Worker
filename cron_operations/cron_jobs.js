@@ -34,7 +34,7 @@ async function init_cron_jobs(app){
     timezone: 'Europe/Istanbul'
   });
 
-  var cron_date_3_prod = '50 15 * * *'; //0 18 * * *
+  var cron_date_3_prod = '20 17 * * *'; //0 18 * * *
   cron.schedule(cron_date_3_prod, async () => {
     try{
       console.log("The fuel pricing operation has been successfully started. ");
