@@ -73,7 +73,7 @@ app.get(
         version: BACKEND_VERSION,
         success: true,
         service_issuer: 'worker.routewiseapp.com',
-        server_update_date: '19.01.2026 19:25'
+        server_update_date: '19.01.2026 20:45'
       });
   }
 );
