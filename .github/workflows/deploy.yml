@@ -18,7 +18,11 @@ jobs:
           command_timeout: 30m
           script: |
             set -e
+            echo "APP_DIR=${{ secrets.APP_DIR }}"
+            ls -la "${{ secrets.APP_DIR }}" || true
             cd "${{ secrets.APP_DIR }}"
+            pwd
+            git rev-parse --is-inside-work-tree
             git fetch --all
             git reset --hard origin/main
             docker compose up -d --build
