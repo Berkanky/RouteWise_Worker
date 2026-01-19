@@ -53,17 +53,29 @@ app.use((req, res, next) => {
   return next();
 });
 
-var route_wise_app_response = {
-  request_date: new Date(),
-  version: BACKEND_VERSION,
-  success: true,
-  service_issuer: 'worker.routewiseapp.com'
-};
+app.use((req, res, next) => {
+  res.on("finish", () => {
+    console.log(
+      req.method,
+      req.originalUrl,
+      res.statusCode
+    );
+  });
+  next();
+});
 
 //Health servisi.
 app.get(
     "/health",
-    async(req, res) => { return res.status(200).json(route_wise_app_response); }
+    async(req, res) => { 
+      return res.status(200).json({
+        request_date: new Date(),
+        version: BACKEND_VERSION,
+        success: true,
+        service_issuer: 'worker.routewiseapp.com',
+        server_update_date: '19.01.2026 19:25'
+      });
+  }
 );
 
 var globalLimiter = rateLimit({
